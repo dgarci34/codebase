@@ -858,11 +858,13 @@ RC RM_ScanIterator::close()
 
 RC RelationManager::createIndex(const string &tableName, const string &attributeName)
 {
+	cout<< "creating index\n";
 	return -1;
 }
 
 RC RelationManager::destroyIndex(const string &tableName, const string &attributeName)
 {
+	cout<< "destroying index\n";
 	return -1;
 }
 
@@ -902,5 +904,4 @@ RC RelationManager::indexScan(const string &tableName,
     
     return SUCCESS;
 }
-
 

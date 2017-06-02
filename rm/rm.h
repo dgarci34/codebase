@@ -42,6 +42,17 @@ using namespace std;
 #define COLUMNS_COL_COLUMN_POSITION  "column-position"
 #define COLUMNS_COL_COLUMN_NAME_SIZE 50
 
+//index catalog defs
+
+#define INDEXES_TABLE_NAME		"indexes"
+#define INDEXES_TABLE_ID		3
+
+#define INDEXES_COL_INDEX_ID		"table-id"
+#define INDEXES_COL_INDEX_NAME		"index-name"
+#define INDEXES_COL_TYPE		"index type"
+#define	INDEXES_COL_LENGTH		"index length"
+#define INDEXES_COL_INDEX_NAME_SIZE	50
+
 // 1 null byte, 4 integer fields and a varchar
 #define COLUMNS_RECORD_DATA_SIZE 1 + 5 * INT_SIZE + COLUMNS_COL_COLUMN_NAME_SIZE
 
