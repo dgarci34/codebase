@@ -1117,21 +1117,20 @@ RC RelationManager::indexScan(const string &tableName,
 //NOTE: need to change this to fetch from an index not a table
     // grab the record descriptor for the given tableName
     vector<Attribute> recordDescriptor;
+	vector<Attribute> indexAtt;
     rc = getAttributes(tableName, recordDescriptor);
     if (rc)
         return rc;
-    //get attribute
-    Attribute paramAtt;
-    for (unsigned i =0; i < recordDescriptor.size(); i ++){
-        if (recordDescriptor[i].name == attributeName){
-            paramAtt = recordDescriptor[i];
-        }
-    }
-    if(paramAtt.name == "")
-        return RM_INDEX_SCAN_FAILED;
+	for (unsigned i =0; i < recordDescriptor.size(); i ++){
+		if (recordDescriptor[i].name == attributeName)
+			indexAtt.push_back(recordDescriptor[i]);
+	}
+	//checking if passed attibute even exist in the table
+	if (indexAtt.size() != 1)
+		return RM_INVALID_INDEX_ATTRIBUTE;
     
     // Use the underlying rbfm_scaniterator to do all the work
-    rc = ix->scan(rm_IndexScanIterator.ixfileHandle, paramAtt, lowKey, highKey, lowKeyInclusive, highKeyInclusive, rm_IndexScanIterator.ix_iter);
+    rc = ix->scan(rm_IndexScanIterator.ixfileHandle, indexAtt[0], lowKey, highKey, lowKeyInclusive, highKeyInclusive, rm_IndexScanIterator.ix_iter);
     if (rc)
         return rc;
     
