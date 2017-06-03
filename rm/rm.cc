@@ -540,6 +540,11 @@ vector<Attribute> RelationManager::createIndexDescriptor(){
     attr.length = (AttrLength)INDEXES_COL_FILE_NAME_SIZE;
     id.push_back(attr);
 	
+	attr.name = INDEXES_COL_SYSTEM;
+    attr.type = TypeInt;
+    attr.length = (AttrLength)INT_SIZE;
+    id.push_back(attr);
+	
 	return id;
 }
 
@@ -659,6 +664,25 @@ RC RelationManager::insertTable(int32_t id, int32_t system, const string &tableN
     return rc;
 }
 
+RC RelationManager::insertIndex(int32_t id, int32_t system, const string &indexName){
+	FileHandle fileHandle;
+	RID rid;
+	RC rc;
+	RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+	
+	rc = rbfm->openFile(getFileName(INDEXES_TABLE_NAME), fileHandle);
+	if (rc)
+		return rc;
+	
+	void * tableData = malloc(INDEXES_RECORD_DATA_SIZE);
+	prepareTablesRecordData(id, system, indexName, tableData);
+	rc = rbfm->insertRecord(fileHandle, indexDescriptor, tableData,rid);
+	
+	rbfm->closeFile(fileHandle);
+	free(tableData);
+	return rc;
+}
+
 // Get the next table ID for creating a table
 RC RelationManager::getNextTableID(int32_t &table_id)
 {
@@ -701,6 +725,46 @@ RC RelationManager::getNextTableID(int32_t &table_id)
     return SUCCESS;
 }
 
+RC RelationManager::getNextIndexID(int32_t &indexID){
+	RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+	FileHandle fileHandle;
+	RC rc;
+
+	rc = rbfm->openFile(getFileName(INDEXES_TABLE_NAME), fileHandle);
+	if (rc)
+		return rc;
+
+    // Grab only the table ID
+	vector<string> projection;
+	projection.push_back(INDEXES_COL_TABLE_ID);
+
+    // Scan through all tables to get largest ID value
+	RBFM_ScanIterator rbfm_si;
+	rc = rbfm->scan(fileHandle, indexDescriptor, INDEXES_COL_TABLE_ID, NO_OP, NULL, projection, rbfm_si);
+
+	RID rid;
+	void *data = malloc (1 + INT_SIZE);
+	int32_t max_index_id = 0;
+	while ((rc = rbfm_si.getNextRecord(rid, data)) == (SUCCESS))
+	{
+		// Parse out the table id, compare it with the current max
+		int32_t tid;
+		fromAPI(tid, data);
+		if (tid > max_index_id)
+			max_index_id = tid;
+	}
+    // If we ended on eof, then we were successful
+	if (rc == RM_EOF)
+		rc = SUCCESS;
+
+	free(data);
+	// Next table ID is 1 more than largest table id
+	indexID = max_index_id + 1;
+	rbfm->closeFile(fileHandle);
+	rbfm_si.close();
+	return SUCCESS;
+}
+
 // Gets the table ID of the given tableName
 RC RelationManager::getTableID(const string &tableName, int32_t &tableID)
 {
@@ -741,6 +805,46 @@ RC RelationManager::getTableID(const string &tableName, int32_t &tableID)
     rbfm->closeFile(fileHandle);
     rbfm_si.close();
     return rc;
+}
+
+//like get table id but for indexes
+RC RelationManager::getIndexID(const string &indexName, int32_t &indexID){
+     RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+     FileHandle fileHandle;
+     RC rc;
+ 
+     rc = rbfm->openFile(getFileName(INDEXES_TABLE_NAME), fileHandle);
+     if (rc)
+         return rc;
+ 
+     // We only care about the index ID
+     vector<string> projection;
+     projection.push_back(INDEXES_COL_TABLE_ID);
+ 
+     // Fill value with the string indexname in api format (without null indicator)
+     void *value = malloc(4 + INDEXES_COL_INDEX_NAME_SIZE);
+     int32_t name_len = indexName.length();
+     memcpy(value, &name_len, INT_SIZE);
+     memcpy((char*)value + INT_SIZE, indexName.c_str(), name_len); 
+     // Find the index entries whose index-name field matches indexName
+     RBFM_ScanIterator rbfm_si;
+     rc = rbfm->scan(fileHandle, indexDescriptor, INDEXES_COL_INDEX_NAME, EQ_OP, value, projection, rbfm_si);
+ 
+     // There will only be one such entry, so we use if rather than while
+     RID rid;
+     void *data = malloc (1 + INT_SIZE);
+     if ((rc = rbfm_si.getNextRecord(rid, data)) == SUCCESS)
+     {
+         int32_t tid;
+         fromAPI(tid, data);
+         indexID = tid;
+     }
+ 
+     free(data);
+     free(value);
+     rbfm->closeFile(fileHandle);
+     rbfm_si.close();
+     return rc;
 }
 
 // Determine if table tableName is a system table. Set the boolean argument as the result
@@ -905,16 +1009,96 @@ RC RM_ScanIterator::close()
     return SUCCESS;
 }
 
-RC RelationManager::createIndex(const string &tableName, const string &attributeName)
+RC RelationManager::createIndex(const string &indexName, const string &attributeName)
 {
-	cout<< "creating index\n";
-	return -1;
+	cout<<"creating index\n";
+    RC rc;
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+
+    // Create the rbfm file to store the index
+    if ((rc = rbfm->createFile(getFileName(indexName))))
+        return rc;
+
+    // Get the index's ID
+    int32_t id;
+    rc = getNextIndexID(id);
+    if (rc)
+        return rc;
+
+    // Insert the index into the indexes table (0 means this is not a system index)
+    rc = insertIndex(id, 0, indexName);
+    if (rc)
+        return rc;
+
+    return SUCCESS;
 }
 
-RC RelationManager::destroyIndex(const string &tableName, const string &attributeName)
+RC RelationManager::destroyIndex(const string &indexName, const string &attributeName)
 {
 	cout<< "destroying index\n";
-	return -1;
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+    RC rc;
+
+    // If this is a system table, we cannot delete it
+    bool isSystem;
+    rc = isSystemTable(isSystem, indexName);
+    if (rc)
+        return rc;
+    if (isSystem)
+        return RM_CANNOT_MOD_SYS_TBL;
+
+    // Delete the rbfm file holding this index
+    rc = rbfm->destroyFile(getFileName(indexName));
+    if (rc)
+        return rc;
+
+    // Grab the table ID
+    int32_t id;
+    rc = getIndexID(indexName, id);
+    if (rc)
+        return rc;
+
+    // Open index file
+    FileHandle fileHandle;
+    rc = rbfm->openFile(getFileName(INDEXES_TABLE_NAME), fileHandle);
+    if (rc)
+        return rc;
+
+    // Find entry with same index ID
+    // Use empty projection because we only care about RID
+    RBFM_ScanIterator rbfm_si;
+    vector<string> projection; // Empty
+    void *value = &id;
+
+    rc = rbfm->scan(fileHandle, indexDescriptor, INDEXES_COL_TABLE_ID, EQ_OP, value, projection, rbfm_si);
+
+    RID rid;
+    rc = rbfm_si.getNextRecord(rid, NULL);
+    if (rc)
+        return rc;
+
+    // Delete RID from table and close file
+    rbfm->deleteRecord(fileHandle, indexDescriptor, rid);
+    rbfm->closeFile(fileHandle);
+    rbfm_si.close();
+
+    // Find all of the entries whose index-id equal this index's ID
+    rbfm->scan(fileHandle, indexDescriptor, INDEXES_COL_TABLE_ID, EQ_OP, value, projection, rbfm_si);
+
+    while((rc = rbfm_si.getNextRecord(rid, NULL)) == SUCCESS)
+    {
+        // Delete each result with the returned RID
+        rc = rbfm->deleteRecord(fileHandle, indexDescriptor, rid);
+        if (rc)
+            return rc;
+    }
+    if (rc != RBFM_EOF)
+        return rc;
+
+    rbfm->closeFile(fileHandle);
+    rbfm_si.close();
+
+    return SUCCESS;
 }
 
 RC RelationManager::indexScan(const string &tableName,

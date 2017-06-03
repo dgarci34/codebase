@@ -54,6 +54,7 @@ using namespace std;
 #define	INDEXES_COL_INDEX_LENGTH	"index length"
 #define INDEXES_COL_INDEX_POSITION	"index-position"
 #define INDEXES_COL_INDEX_NAME_SIZE	50
+#define INDEXES_COL_SYSTEM			"system"
 #define INDEXES_COL_FILE_NAME_SIZE	50
 
 #define INDEXES_RECORD_DATA_SIZE 1 + 4 * INT_SIZE + INDEXES_COL_INDEX_NAME_SIZE + INDEXES_COL_FILE_NAME_SIZE
@@ -193,7 +194,16 @@ private:
   // Get table ID of table with name tableName
   RC getTableID(const string &tableName, int32_t &tableID);
 
+	//given index id, system flag, and table name, creates entry in Index table
+	RC insertIndex(int32_t id, int32_t system, const string &indexName);
+	//get next index id for creating an index
+	RC getNextIndexID(int32_t &index_id);
+	//get index ID of index with name indexName
+	RC getIndexID(const string &indexName, int32_t &indexID);
+	
   RC isSystemTable(bool &system, const string &tableName);
+  
+  RC isSystemIndex(bool &system, const string &indexName);
 
 public: 
 // Extra credit work (10 points)
