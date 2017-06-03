@@ -15,7 +15,7 @@ RelationManager* RelationManager::instance()
 }
 
 RelationManager::RelationManager()
-: tableDescriptor(createTableDescriptor()), columnDescriptor(createColumnDescriptor())
+: tableDescriptor(createTableDescriptor()), columnDescriptor(createColumnDescriptor()), indexDescriptor(createIndexDescriptor())
 {
 }
 
@@ -34,6 +34,10 @@ RC RelationManager::createCatalog()
     rc = rbfm->createFile(getFileName(COLUMNS_TABLE_NAME));
     if (rc)
         return rc;
+	//additional indexes catalog file
+	rc = rbfm->createFile(getFileName(INDEXES_TABLE_NAME));
+	if (rc)
+		return rc;
 
     // Add table entries for both Tables and Columns
     rc = insertTable(TABLES_TABLE_ID, 1, TABLES_TABLE_NAME);
@@ -42,6 +46,10 @@ RC RelationManager::createCatalog()
     rc = insertTable(COLUMNS_TABLE_ID, 1, COLUMNS_TABLE_NAME);
     if (rc)
         return rc;
+	//add tables netries for indexes
+	rc = insertTable(INDEXES_TABLE_ID, 1, INDEXES_TABLE_NAME);
+	if(rc)
+		return rc;
 
 
     // Add entries for tables and columns to Columns table
@@ -51,6 +59,10 @@ RC RelationManager::createCatalog()
     rc = insertColumns(COLUMNS_TABLE_ID, columnDescriptor);
     if (rc)
         return rc;
+	//add entries for index to columns table
+	rc = insertColumns(INDEXES_TABLE_ID, indexDescriptor);
+	if (rc)
+		return rc;
 
     return SUCCESS;
 }
@@ -492,6 +504,43 @@ vector<Attribute> RelationManager::createColumnDescriptor()
     cd.push_back(attr);
 
     return cd;
+}
+
+vector<Attribute> RelationManager::createIndexDescriptor(){
+	vector<Attribute> id;
+	
+	Attribute attr;
+    attr.name = INDEXES_COL_TABLE_ID;
+    attr.type = TypeInt;
+    attr.length = (AttrLength)INT_SIZE;
+    id.push_back(attr);
+
+    attr.name = INDEXES_COL_INDEX_NAME;
+    attr.type = TypeVarChar;
+    attr.length = (AttrLength)INDEXES_COL_INDEX_NAME_SIZE;
+    id.push_back(attr);
+
+    attr.name = INDEXES_COL_INDEX_TYPE;
+    attr.type = TypeInt;
+    attr.length = (AttrLength)INT_SIZE;
+    id.push_back(attr);
+
+    attr.name = INDEXES_COL_INDEX_LENGTH;
+    attr.type = TypeInt;
+    attr.length = (AttrLength)INT_SIZE;
+    id.push_back(attr);
+
+    attr.name = INDEXES_COL_INDEX_POSITION;
+    attr.type = TypeInt;
+    attr.length = (AttrLength)INT_SIZE;
+    id.push_back(attr);
+	
+	attr.name = INDEXES_COL_FILE_NAME;
+    attr.type = TypeVarChar;
+    attr.length = (AttrLength)INDEXES_COL_FILE_NAME_SIZE;
+    id.push_back(attr);
+	
+	return id;
 }
 
 // Creates the Tables table entry for the given id and tableName
