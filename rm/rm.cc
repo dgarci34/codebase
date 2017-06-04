@@ -1009,33 +1009,37 @@ RC RM_ScanIterator::close()
     return SUCCESS;
 }
 
-RC RelationManager::createIndex(const string &indexName, const string &attributeName)
+RC RelationManager::createIndex(const string &tableName, const string &attributeName)
 {
-	cout<<"creating index\n";
+//	cout<<"creating index\n";
+	string indexName = tableName + '-' + attributeName;
     RC rc;
     RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
-
+//	cout<< indexName<<endl;
     // Create the rbfm file to store the index
-    if ((rc = rbfm->createFile(getFileName(indexName))))
+    if ((rc = rbfm->createFile(getFileName(indexName)))){
         return rc;
-
+	}
+//	cout<< "made file\n";
     // Get the index's ID
     int32_t id;
     rc = getNextIndexID(id);
     if (rc)
         return rc;
+//	printf("fetched id %d\n", id);
 
     // Insert the index into the indexes table (0 means this is not a system index)
     rc = insertIndex(id, 0, indexName);
     if (rc)
         return rc;
-
+//	cout<< "inserted index ";
     return SUCCESS;
 }
 
-RC RelationManager::destroyIndex(const string &indexName, const string &attributeName)
+RC RelationManager::destroyIndex(const string &tableName, const string &attributeName)
 {
 	cout<< "destroying index\n";
+	string indexName = tableName + '-' + attributeName;
     RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
     RC rc;
 
