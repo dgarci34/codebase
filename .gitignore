@@ -1,3 +1,7 @@
+# files created by make
+*.a
+*.o
+
 # every files in qe (except .cc and .h files)
 qe/*
 !qe/*.cc
