@@ -8,6 +8,7 @@
 #include "../ix/ix.h"
 
 #define QE_EOF (-1)  // end of the index scan
+#define INVALID_TABLE_OBJECT 1
 
 using namespace std;
 

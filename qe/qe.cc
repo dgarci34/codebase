@@ -6,6 +6,11 @@ Filter::Filter(Iterator* input, const Condition &condition) : itr(input), cond(c
 }
 
 RC Filter::getNextTuple(void *data) {
+	//cast the iterator to a tablescan type
+	TableScan * t_ptr = dynamic_cast<TableScan *>(itr);
+	if (!t_ptr)
+		return INVALID_TABLE_OBJECT;
+	cout<< "casted properly\n";
   return -1;
 }
 
