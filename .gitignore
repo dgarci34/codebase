@@ -1,5 +1,4 @@
-# make built files #
-####################
-*.o
-*.a
-*.t
+# every files in qe (except .cc and .h files)
+qe/*
+!qe/*.cc
+!qe/*.h
