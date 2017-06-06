@@ -11,10 +11,18 @@ RC Filter::getNextTuple(void *data) {
 	if (!t_ptr)
 		return INVALID_TABLE_OBJECT;
 	cout<< "casted properly\n";
+//	while (t-ptr->iter->getNextTuple(data) != QE_EOF){
+//		
+//	}
   return -1;
 }
 
 void Filter::getAttributes(vector<Attribute> &attrs) const {
+	TableScan * t_ptr = dynamic_cast<TableScan *>(itr);
+	if (!t_ptr)
+		return;
+	cout<< "casted properly\n";
+	attrs = t_ptr->attrs;
 }
 
 // Project
