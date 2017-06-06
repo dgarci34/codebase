@@ -1009,6 +1009,19 @@ RC RM_ScanIterator::close()
     return SUCCESS;
 }
 
+// let index manager do the work
+RC RM_IndexScanIterator::getNextEntry(RID &rid, void *key){
+	return ix_iter.getNextEntry(rid, key);
+}
+
+//close the ixfileHandle, and ix_iter
+RC RM_IndexScanIterator::close(){
+	IndexManager * ix = IndexManager::instance();
+	ix_iter.close();
+	ix->closeFile(ixfileHandle);
+	return SUCCESS;
+}
+
 RC RelationManager::createIndex(const string &tableName, const string &attributeName)
 {
 //	cout<<"creating index\n";
