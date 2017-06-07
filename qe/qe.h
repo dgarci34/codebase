@@ -9,6 +9,7 @@
 
 #define QE_EOF (-1)  // end of the index scan
 #define INVALID_TABLE_OBJECT 1
+#define QE_TYPE_ERROR 2;
 
 using namespace std;
 
@@ -223,6 +224,19 @@ class Project : public Iterator {
     private:
       Iterator *itr;
       vector<string> attributes;
+      bool fieldIsNull(unsigned char *nullIndicator, int i);
+      RC setNullIndicator(unsigned char *nullIndicator, int i);
+
+      /*
+      void setFirstBitToNull(char * byte);
+      void setSecondBitToNull(char * byte);
+      void setThirdBitToNull(char * byte);
+      void setForthBitToNull(char * byte);
+      void setFifthBitToNull(char * byte);
+      void setSixthBitToNull(char * byte);
+      void setSeventhBitToNull(char * byte);
+      void setEigthBitToNull(char * byte);
+      */
 };
 
 class BNLJoin : public Iterator {
