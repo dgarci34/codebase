@@ -6,9 +6,13 @@
 #include "../rbf/rbfm.h"
 #include "../rm/rm.h"
 #include "../ix/ix.h"
+#include "math.h"
+#include "string.h"
 
 #define QE_EOF (-1)  // end of the index scan
+#define QE_INVALID_ATTRIBUTE (-1)
 #define INVALID_TABLE_OBJECT 1
+
 
 using namespace std;
 
@@ -206,6 +210,14 @@ class Filter : public Iterator {
     private:
       Iterator * itr;
       Condition cond;
+	unsigned getConditionTarget(vector<Attribute> &attrs, string target);
+	void getAttributeData(vector<Attribute> &attrs, unsigned attrPos, void * data, void * output);
+    void getDataFromValue(Condition cond, void * output);
+	int attCompare(void * left, void * right, AttrType type);
+    int compare(const int key, const int value) const;
+    int compare(const float key, const float value) const;
+    int compare(const char *key, const char *value) const;
+	bool validCompare(int returnValue, CompOp compOp);
 };
 
 
