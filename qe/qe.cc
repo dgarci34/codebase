@@ -33,46 +33,29 @@ RC Filter::getNextTuple(void *data) {
 		void * leftHand;
 		leftSize = getAttSize(t_ptr->attrs, attributePosition, data);
 		leftHand = malloc(leftSize);
-        getAttributeData(t_ptr->attrs, attributePosition, leftSize, data, leftHand);
-//        cout<< "got left hand: "<< ((int*)leftHand)[0]<<endl;
+        	getAttributeData(t_ptr->attrs, attributePosition, leftSize, data, leftHand);
+		cout<< "";
+//		if(cond.rhsValue.type == TypeVarChar)
+//			printVarchar(leftHand);
 		//accuire right hand variable
-        void * rightHand;
-        if(cond.bRhsIsAttr){
-            cout<<"has right\n";
-            rhAttributePosition = getConditionTarget(t_ptr->attrs, cond.rhsAttr);
+		void * rightHand;
+		if(cond.bRhsIsAttr){
+//			cout<<"has right\n";
+			rhAttributePosition = getConditionTarget(t_ptr->attrs, cond.rhsAttr);
 			rightSize = getAttSize(t_ptr->attrs, rhAttributePosition, data);
 			rightHand = malloc(rightSize);
-            getAttributeData(t_ptr->attrs,rhAttributePosition, rightSize, data, rightHand);
-        }
-        else{	//get stored value
+			getAttributeData(t_ptr->attrs,rhAttributePosition, rightSize, data, rightHand);
+		}
+		else{	//get stored value
 //			cout<< "have to fetch stored value\n";
-			switch(cond.rhsValue.type){
-				case TypeInt:
-				{
-					rightHand = malloc(INT_SIZE);
-					rightSize = INT_SIZE;
-					memcpy(rightHand,cond.rhsValue.data, rightSize);
-					break;
-				}
-				case TypeReal:
-				{
-					rightHand = malloc(REAL_SIZE);
-					rightSize = REAL_SIZE;
-					memcpy(rightHand,cond.rhsValue.data, rightSize);
-					break;
-				}
-				case TypeVarChar:
-				{
-					rightSize = ((int *)cond.rhsValue.data)[0];
-					rightHand = malloc(rightSize + INT_SIZE);
-					memcpy(rightHand,&rightSize, INT_SIZE);
-					memcpy(rightHand,cond.rhsValue.data + INT_SIZE, rightSize);
-					break;
-				}
-			}
+			rightSize = getStoredValueSize(cond);
+			rightHand = malloc(rightSize);
+			getDataFromValue(cond, rightSize, rightHand);
+			cout<<"";
+//			if (cond.rhsValue.type == TypeVarChar)
+//				printVarchar(rightHand);
 			
-        }
-//		cout<< "right: "<< ((int*)rightHand)[0]<<endl;
+		}
 		//if comparison holds return it
 		int compareVal = attCompare(leftHand, rightHand, t_ptr->attrs[attributePosition].type);
 		if (validCompare(compareVal, cond.op)){
@@ -82,7 +65,7 @@ RC Filter::getNextTuple(void *data) {
 			return SUCCESS;
 		}
 		else{
-			cout<< "does not meet comparison check\n";
+//			cout<< "does not meet comparison check\n";
 			free(rightHand);
 			free(leftHand);
 		}
@@ -106,6 +89,15 @@ unsigned Filter::getAttSize(vector<Attribute> &attrs, unsigned attrPos, void * d
 			break;
 	}
 	return size;
+}
+//used to print out a varchar for debugging purposes
+void Filter::printVarchar(void * data){
+	int size = ((int*)data)[0];
+	cout<< "varchar: ";
+	for (int i =0; i < size; i ++){
+		cout<< ((char*)(data + INT_SIZE))[i];
+	}
+	cout<<endl;
 }
 //used to break up the . for table name
 string Filter::parseAttributeName(const string name){
@@ -203,30 +195,30 @@ int Filter::compare(const char *key, const char *value) const
 {
     return strcmp(key, value);
 }
+//gets the size of a built in value
+unsigned Filter::getStoredValueSize(Condition cond){
+	if (cond.rhsValue.type == TypeInt || cond.rhsValue.type == TypeReal)
+		return INT_SIZE;
+	//otherwise return the leading var char length
+	return ((int*)cond.rhsValue.data)[0] + INT_SIZE;
+
+}
 //sets the built in value from condition
-void Filter::getDataFromValue(Condition cond, void * output){
-	unsigned size;
+void Filter::getDataFromValue(Condition cond, unsigned attrSize, void * output){
 	switch(cond.rhsValue.type){
 		case TypeInt:
 		{
-			output = malloc(INT_SIZE);
-			size = INT_SIZE;
-			memcpy(output,cond.rhsValue.data, size);
+			memcpy(output,cond.rhsValue.data, attrSize);
 			break;
 		}
 		case TypeReal:
 		{
-			output = malloc(REAL_SIZE);
-			size = REAL_SIZE;
-			memcpy(output,cond.rhsValue.data, size);
+			memcpy(output,cond.rhsValue.data, attrSize);
 			break;
 		}
 		case TypeVarChar:
 		{
-			size = ((int *)cond.rhsValue.data)[0];
-			output = malloc(size + INT_SIZE);
-			memcpy(output,&size, INT_SIZE);
-			memcpy(output,cond.rhsValue.data + INT_SIZE, size);
+			memcpy(output,cond.rhsValue.data, attrSize);
 			break;
 		}
 	}
@@ -249,7 +241,7 @@ void Filter::getAttributeData(vector<Attribute> &attrs, unsigned attrPos, unsign
 	int nullBytes = int(ceil((double)attrs.size() / CHAR_BIT));
 //    cout<< "null bytes: "<<nullBytes<< "att pos: "<<attrPos<<endl;
 	cast += nullBytes;
-	for (unsigned i =0; i < attrPos-1; i ++){
+	for (unsigned i =0; i < attrPos; i ++){
 		//NOTE: need to check for nulls
 		switch(attrs[i].type){
 			case TypeInt:
