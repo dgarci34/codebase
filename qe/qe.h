@@ -211,13 +211,16 @@ class Filter : public Iterator {
       Iterator * itr;
       Condition cond;
 	unsigned getConditionTarget(vector<Attribute> &attrs, string target);
-	void getAttributeData(vector<Attribute> &attrs, unsigned attrPos, void * data, void * output);
+	void getAttributeData(vector<Attribute> &attrs, unsigned attrPos, unsigned size, void * data, void * output);
     void getDataFromValue(Condition cond, void * output);
 	int attCompare(void * left, void * right, AttrType type);
     int compare(const int key, const int value) const;
     int compare(const float key, const float value) const;
     int compare(const char *key, const char *value) const;
 	bool validCompare(int returnValue, CompOp compOp);
+    string parseTableName(const string name);
+    string parseAttributeName(const string name);
+	unsigned getAttSize(vector<Attribute> &attrs, unsigned attrPos, void * data);
 };
 
 
