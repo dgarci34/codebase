@@ -250,17 +250,6 @@ class Project : public Iterator {
       string parseAttributeName(const string name);
       bool fieldIsNull(unsigned char *nullIndicator, int i);
       RC setNullIndicator(unsigned char *nullIndicator, int i);
-
-      /*
-      void setFirstBitToNull(char * byte);
-      void setSecondBitToNull(char * byte);
-      void setThirdBitToNull(char * byte);
-      void setForthBitToNull(char * byte);
-      void setFifthBitToNull(char * byte);
-      void setSixthBitToNull(char * byte);
-      void setSeventhBitToNull(char * byte);
-      void setEigthBitToNull(char * byte);
-      */
 };
 
 /*class BNLJoin : public Iterator {
