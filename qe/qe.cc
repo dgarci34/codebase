@@ -3,17 +3,28 @@
 
 // Filter
 Filter::Filter(Iterator* input, const Condition &condition) : itr(input), cond(condition) {
-	TableScan * t_ptr = dynamic_cast<TableScan *>(itr);
-	t_ptr->setIterator();
+	t_ptr = dynamic_cast<TableScan *>(itr);
+	if(t_ptr){
+		cout<<"is table type\n";
+		t_ptr->setIterator();
+		cout<<"is table type\n";
+	}
+	else{
+		
+		i_ptr = dynamic_cast<IndexScan *>(itr);
+		if(i_ptr)
+			cout<<"is index type\n";
+		i_ptr->setIterator(NULL,NULL,true,true);
+		cout<<"is index type\n";
+	}
 }
 
 RC Filter::getNextTuple(void *data) {
 	//cast the iterator to a tablescan type
-	TableScan * t_ptr = dynamic_cast<TableScan *>(itr);
 	if (!t_ptr){
-		cout<< "bad cast\n";
-		return INVALID_TABLE_OBJECT;
+		return getNextTupleIndex(data);
 	}
+//	cout<< "casted properly\n";
     string tableName  = parseTableName(cond.lhsAttr);
     string atrributeName = parseAttributeName(cond.lhsAttr);
 	unsigned attributePosition = getConditionTarget(t_ptr->attrs, atrributeName);
@@ -75,6 +86,11 @@ RC Filter::getNextTuple(void *data) {
 	}
 	//reached end of 
 	return QE_EOF;
+}
+//does the same as get next tuple but for index types
+RC Filter::getNextTupleIndex(void * data){
+	cout<<"next tuple index\n";
+	return -1;
 }
 //used to get the size to malloc
 unsigned Filter::getAttSize(vector<Attribute> &attrs, unsigned attrPos, void * data){

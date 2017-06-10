@@ -211,9 +211,10 @@ class Filter : public Iterator {
     private:
 	friend class INLJoin;
 	Iterator * itr;
-//	TableScan * t_ptr;
-//	IndexScan * i_ptr;
+	TableScan * t_ptr;
+	IndexScan * i_ptr;
 	Condition cond;
+	RC getNextTupleIndex(void * data);
 	static unsigned getConditionTarget(vector<Attribute> &attrs, string target);
 	static void getAttributeData(vector<Attribute> &attrs, unsigned attrPos, unsigned size, void * data, void * output);
 	static void getIndexData(unsigned size, void * data, void * output);
