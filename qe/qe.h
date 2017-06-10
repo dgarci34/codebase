@@ -12,8 +12,8 @@
 #define QE_EOF (-1)  // end of the index scan
 #define QE_INVALID_ATTRIBUTE (-1)
 #define INVALID_TABLE_OBJECT 1
-#define QE_TYPE_ERROR 2;
-
+#define INVALID_CLASS_TYPE 2;
+#define QE_TYPE_ERROR 3;
 
 using namespace std;
 
@@ -209,16 +209,25 @@ class Filter : public Iterator {
         void getAttributes(vector<Attribute> &attrs) const;
 
     private:
-      Iterator * itr;
-      Condition cond;
-	unsigned getConditionTarget(vector<Attribute> &attrs, string target);
-	void getAttributeData(vector<Attribute> &attrs, unsigned attrPos, void * data, void * output);
-    void getDataFromValue(Condition cond, void * output);
-	int attCompare(void * left, void * right, AttrType type);
-    int compare(const int key, const int value) const;
-    int compare(const float key, const float value) const;
-    int compare(const char *key, const char *value) const;
-	bool validCompare(int returnValue, CompOp compOp);
+	friend class INLJoin;
+	Iterator * itr;
+//	TableScan * t_ptr;
+//	IndexScan * i_ptr;
+	Condition cond;
+	static unsigned getConditionTarget(vector<Attribute> &attrs, string target);
+	static void getAttributeData(vector<Attribute> &attrs, unsigned attrPos, unsigned size, void * data, void * output);
+	static void getIndexData(unsigned size, void * data, void * output);
+	static void getDataFromValue(Condition cond, unsigned size, void * output);
+	static int attCompare(void * left, void * right, AttrType type);
+	static int compare(const int key, const int value) ;
+	static int compare(const float key, const float value) ;
+	static int compare(const char *key, const char *value) ;
+	static bool validCompare(int returnValue, CompOp compOp);
+	static string parseTableName(const string name);
+	static string parseAttributeName(const string name);
+	static unsigned getAttSize(vector<Attribute> &attrs, unsigned attrPos, void * data);
+	static unsigned getStoredValueSize(Condition cond);
+	static void printVarchar(void * data);
 };
 
 
@@ -251,7 +260,7 @@ class Project : public Iterator {
       */
 };
 
-class BNLJoin : public Iterator {
+/*class BNLJoin : public Iterator {
     // Block nested-loop join operator
     public:
         BNLJoin(Iterator *leftIn,            // Iterator of input R
@@ -265,7 +274,7 @@ class BNLJoin : public Iterator {
         RC getNextTuple(void *data){return QE_EOF;};
         // For attribute in vector<Attribute>, name it as rel.attr
         void getAttributes(vector<Attribute> &attrs) const{};
-};
+};*/
 
 
 class INLJoin : public Iterator {
@@ -282,13 +291,17 @@ class INLJoin : public Iterator {
         void getAttributes(vector<Attribute> &attrs) const;
 
     private:
-      Iterator *leftInput;
-      IndexScan *rightInput;
-      Condition cond;
+		Iterator *leftInput;
+		TableScan * leftTable;
+		bool leftIsTable;
+		IndexScan * leftIndex;
+
+		IndexScan *rightInput;
+		Condition cond;
 };
 
 // Optional for everyone. 10 extra-credit points
-class GHJoin : public Iterator {
+/*class GHJoin : public Iterator {
     // Grace hash join operator
     public:
       GHJoin(Iterator *leftIn,               // Iterator of input R
@@ -327,6 +340,6 @@ class Aggregate : public Iterator {
         // E.g. Relation=rel, attribute=attr, aggregateOp=MAX
         // output attrname = "MAX(rel.attr)"
         void getAttributes(vector<Attribute> &attrs) const{};
-};
+};*/
 
 #endif
