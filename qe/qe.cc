@@ -285,132 +285,130 @@ RC Project::getNextTuple(void *data) {
   TableScan * t_ptr = dynamic_cast<TableScan *>(itr);
   if (!t_ptr)
     return INVALID_TABLE_OBJECT;
-  cout<< "casted properly\n";
 
-  // declare variables
-  void * tempData;
-  uint32_t sizeOfData;
-  uint32_t nullsIndicatorSize;
-  unsigned char * nullsIndicator;
-  uint32_t numOfData;
-  vector<Attribute> tempDataAttrs = t_ptr->attrs;
-  uint32_t offset;
+	// get the next tuple with all attributes
+	vector<Attribute> attrs = t_ptr->attrs;
+	int tempDataSize = getTupleSize(attrs);
 
-  vector<string> projectedColumnNames = t_ptr->attrNames;
-  uint32_t numOfProjectColumns;
-  uint32_t projectOffset;
-  uint32_t tempLength;
-  uint32_t pcNullsIndicatorSize;
-  unsigned char * pcNullsIndicator;
+	int numOfColumns = attrs.size();
+	int nullsIndicatorSize = int (ceil((double) numOfColumns / CHAR_BIT));
+	tempDataSize += nullsIndicatorSize;
 
-  // find the data size
-  numOfData = tempDataAttrs.size();
-  nullsIndicatorSize = ceil(numOfData/ 8);
-  nullsIndicator = (unsigned char *) malloc(nullsIndicatorSize);
-  sizeOfData = nullsIndicatorSize;
+	void * tempData = malloc(tempDataSize);
+	if (t_ptr->getNextTuple(tempData)){
+		free(tempData);
+		return QE_EOF;
+	}
 
-  for (uint32_t i = 0; i < numOfData; i++)
-  {
-    sizeOfData += tempDataAttrs[i].length;
-  }
-  tempData = malloc(sizeOfData);
+	// find project columns
+	int i, k;
+	int numOfpjColumns = attributes.size();
+	string tempColumnName;
+	int dataSize;
+	AttrType type;
 
-  // get data
-  if (t_ptr->getNextTuple(tempData))
-  {
-    // No more tuples
-    free(nullsIndicator);
-    free(tempData);
-    return QE_EOF;
-  }
+	unsigned char * nullsIndicator = (unsigned char *) calloc(nullsIndicatorSize, 1);
+	memcpy(nullsIndicator, tempData, nullsIndicatorSize);
 
-  // set nulls indicator
-  memcpy(nullsIndicator, tempData, nullsIndicatorSize);
+	int pjNullsIndicatorSize = int (ceil((double) numOfpjColumns / CHAR_BIT));
+	unsigned char * pjNullsIndicator;
+	pjNullsIndicator = (unsigned char *) calloc(pjNullsIndicatorSize, 1);
 
-  // find project columns
-  numOfProjectColumns = projectedColumnNames.size();
-  pcNullsIndicatorSize = ceil(numOfProjectColumns / 8);
-  projectOffset = pcNullsIndicatorSize;
-  pcNullsIndicator = (unsigned char *) malloc(pcNullsIndicatorSize);
+	bool isColumnFound = false;
+	int offset = nullsIndicatorSize;
+	int pjOffset = pjNullsIndicatorSize;
 
-  for (uint32_t j = 0; j < numOfProjectColumns; j++)
-  {
-    offset = nullsIndicatorSize;
-    for (uint32_t k = 0; k < numOfData; k++)
-    {
-      // find the length of attribute
-      if (fieldIsNull(nullsIndicator, k))
-      {
-        tempLength = 0;
-      }
-      else
-      {
-        switch (tempDataAttrs[k].type)
-        {
-          case TypeInt:
-          {
-            tempLength = sizeof(int);
-            break;
-          }
-          case TypeReal:
-          {
-            tempLength = sizeof(float);
-            break;
-          }
-          case TypeVarChar:
-          {
-            memcpy(&tempLength, ((char *)tempData + offset), sizeof(int));
-            tempLength += sizeof(int);
-            break;
-          }
-          default:
-          {
-            free(nullsIndicator);
-            free(tempData);
-            return QE_TYPE_ERROR;
-          }
-        }
-      }
+	for (i = 0; i < numOfpjColumns; i++) {
+		tempColumnName = parseAttributeName(attributes[i]);
+		isColumnFound = false;
 
-      // the project colum in original data
-      if (projectedColumnNames[j].compare(tempDataAttrs[k].name) == 0)
-      {
-        if (tempLength != 0)
-        {
-          memcpy(((char *)data + projectOffset), ((char *)tempData + offset), tempLength);
-          offset = tempLength;
-        }
-        else
-        {
-          setNullIndicator(pcNullsIndicator, j);
-        }
+		// find the column in tuple
+		for (k = 0; k < numOfColumns; k ++) {
+			type = attrs[k].type;
+			dataSize = getDataSize(tempData, offset, type);
+			// column found
+			if (tempColumnName.compare(attrs[k].name) == 0)
+			{
+				// copy the data if the data is not null
+				if (fieldIsNull(nullsIndicator, k)) {
+					setNullIndicator(pjNullsIndicator, i);
+					dataSize = 0;
+				}
+				else {
+					memcpy((data + pjOffset), (tempData + offset), dataSize);
+				}
 
-        // exit the for loop
-        k = numOfData;
-      }
+				// break the nested-loop
+				isColumnFound = true;
+				k = numOfColumns;
+			}
 
-      offset += tempLength;
-    }
+			offset += dataSize;
+		}
 
-    projectOffset += tempLength;
-  }
+		if (isColumnFound)
+			pjOffset += dataSize;
+	}
 
-  memcpy(data, pcNullsIndicator, pcNullsIndicatorSize);
+	// set the null indicator
+	memcpy(data, pjNullsIndicator, pjNullsIndicatorSize);
 
-  // free memory
-  free(pcNullsIndicator);
-  free(nullsIndicator);
-  free(tempData);
-
-  return SUCCESS;
+	// free memory
+	free(tempData);
+	return SUCCESS;
 }
 
 void Project::getAttributes(vector<Attribute> &attrs) const {
-  TableScan * t_ptr = dynamic_cast<TableScan *>(itr);
-  if (!t_ptr)
-    return;
-  cout<< "casted properly\n";
-  attrs = t_ptr->attrs;
+	TableScan * t_ptr = dynamic_cast<TableScan *>(itr);
+	if (!t_ptr)
+		return;
+	attrs = t_ptr->attrs;
+}
+
+int Project::getTupleSize(vector<Attribute> &attrs) {
+	int numOfAttrs = attrs.size();
+	int size = ceil(numOfAttrs / CHAR_BIT);
+
+  for (int i = 0; i < numOfAttrs; i++) {
+		size += attrs[i].length;
+	}
+	return size;
+}
+
+int Project::getDataSize(void * data, int offset, AttrType type) {
+	int dataSize;
+	switch(type) {
+		case (TypeInt):
+		{
+			dataSize = sizeof(int);
+			break;
+		}
+		case (TypeReal):
+		{
+			dataSize = sizeof(float);
+			break;
+		}
+		case (TypeVarChar):
+		{
+			memcpy(&dataSize, (data + offset), sizeof(int));
+			dataSize += sizeof(int);
+			break;
+		}
+		default:
+		{
+			return QE_TYPE_ERROR;
+		}
+	}
+	return dataSize;
+}
+
+string Project::parseAttributeName(const string name){
+    string dot = ".";
+    size_t pos = name.find(dot);
+    string out;
+    out.insert(0, name, pos +1, name.size() - (pos+ 1));
+
+    return out;
 }
 
 bool Project::fieldIsNull(unsigned char *nullIndicator, int i) {
@@ -420,8 +418,8 @@ bool Project::fieldIsNull(unsigned char *nullIndicator, int i) {
 }
 
 RC Project::setNullIndicator(unsigned char *nullIndicator, int i) {
-  int indicatorIndex = i / 8;
-  int positionInIndex = i % 8;
+  int indicatorIndex = i / CHAR_BIT;
+  int positionInIndex = i % CHAR_BIT;
   switch (positionInIndex)
   {
     case 1:

@@ -245,6 +245,9 @@ class Project : public Iterator {
     private:
       Iterator *itr;
       vector<string> attributes;
+      int getTupleSize(vector<Attribute> &attrs);
+      int getDataSize(void * data, int offset, AttrType type);
+      string parseAttributeName(const string name);
       bool fieldIsNull(unsigned char *nullIndicator, int i);
       RC setNullIndicator(unsigned char *nullIndicator, int i);
 
