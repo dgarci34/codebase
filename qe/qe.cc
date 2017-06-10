@@ -293,7 +293,7 @@ RC Project::getNextTuple(void *data) {
 	int numOfColumns = attrs.size();
 	int nullsIndicatorSize = int (ceil((double) numOfColumns / CHAR_BIT));
 	tempDataSize += nullsIndicatorSize;
-
+	
 	void * tempData = malloc(tempDataSize);
 	if (t_ptr->getNextTuple(tempData)){
 		free(tempData);
@@ -321,7 +321,7 @@ RC Project::getNextTuple(void *data) {
 	for (i = 0; i < numOfpjColumns; i++) {
 		tempColumnName = parseAttributeName(attributes[i]);
 		isColumnFound = false;
-
+		
 		// find the column in tuple
 		for (k = 0; k < numOfColumns; k ++) {
 			type = attrs[k].type;
@@ -338,12 +338,15 @@ RC Project::getNextTuple(void *data) {
 					memcpy((data + pjOffset), (tempData + offset), dataSize);
 				}
 
-				// break the nested-loop
+				// set flag and break the nested-loop
 				isColumnFound = true;
 				k = numOfColumns;
 			}
-
-			offset += dataSize;
+			
+			if (isColumnFound)
+				offset = 1;
+			else 
+				offset += dataSize;
 		}
 
 		if (isColumnFound)
@@ -355,6 +358,8 @@ RC Project::getNextTuple(void *data) {
 
 	// free memory
 	free(tempData);
+	free(nullsIndicator);
+	free(pjNullsIndicator);
 	return SUCCESS;
 }
 
@@ -452,53 +457,7 @@ RC Project::setNullIndicator(unsigned char *nullIndicator, int i) {
   }
   return SUCCESS;
 }
-/*
-void Project::setFirstBitToNull(char * byte)
-{
-  void * nullInt = calloc(1,1);
-  int mask = 0b10000000;
-  int pre = ((int *)byte)[0];
-  memcpy(&mask, nullInt, 1);
-  pre ^= mask;
-  memcpy(byte, &pre, 1);
-  free(nullInt);
-}
 
-void Project::setSecondBitToNull(char * byte)
-{
-  byte ^= 0b01000000;
-}
-
-void Project::setThirdBitToNull(char * byte)
-{
-  byte ^= 0b00100000;
-}
-
-void Project::setForthBitToNull(char * byte)
-{
-  byte ^= 0b00010000;
-}
-
-void Project::setFifthBitToNull(char * byte)
-{
-  byte ^= 0b00001000;
-}
-
-void Project::setSixthBitToNull(char * byte)
-{
-  byte ^= 0b00000100;
-}
-
-void Project::setSeventhBitToNull(char * byte)
-{
-  byte ^= 0b00000010;
-}
-
-void Project::setEigthBitToNull(char * byte)
-{
-  byte ^= 0b00000001;
-}
-*/
 // INLJoin
 INLJoin::INLJoin(Iterator *leftIn, IndexScan *rightIn, const Condition &condition) : leftInput(leftIn), rightInput(rightIn), cond(condition) {
 	leftTable = dynamic_cast<TableScan *>(leftInput);
