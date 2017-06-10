@@ -175,7 +175,7 @@ int Filter::attCompare(void * left, void * right, AttrType type){
 	}
 }
 //integer compare
-int Filter::compare(const int key, const int value) const
+int Filter::compare(const int key, const int value) 
 {
     if (key == value)
         return 0;
@@ -184,7 +184,7 @@ int Filter::compare(const int key, const int value) const
     return -1;
 }
 //reals compare
-int Filter::compare(const float key, const float value) const
+int Filter::compare(const float key, const float value) 
 {
     if (key == value)
         return 0;
@@ -193,7 +193,7 @@ int Filter::compare(const float key, const float value) const
     return -1;
 }
 //varchar compare
-int Filter::compare(const char *key, const char *value) const
+int Filter::compare(const char *key, const char *value) 
 {
     return strcmp(key, value);
 }
@@ -237,7 +237,7 @@ unsigned Filter::getConditionTarget(vector<Attribute> &attrs, string target){
 	}
 	return QE_INVALID_ATTRIBUTE;
 }
-//used to allocate and fetch the attribute
+//used to fetch the attribute
 void Filter::getAttributeData(vector<Attribute> &attrs, unsigned attrPos, unsigned size, void * data, void * output){
 	char * cast = (char *)data;
 	int nullBytes = int(ceil((double)attrs.size() / CHAR_BIT));
@@ -259,10 +259,11 @@ void Filter::getAttributeData(vector<Attribute> &attrs, unsigned attrPos, unsign
 				break;
 		}
 	}
-//    cout<< "cast moved\n";
-	//cast is at the attribute now copy it
 	memcpy(output, cast, size);
-//    cout<< "left: "<< ((int*)output)[0]<<endl;
+}
+//used to fetch from an index type
+void Filter::getIndexData(unsigned size, void * data, void * output){
+	memcpy(output, data, size);
 }
 
 void Filter::getAttributes(vector<Attribute> &attrs) const {
@@ -287,18 +288,59 @@ void Project::getAttributes(vector<Attribute> &attrs) const {
 
 // INLJoin
 INLJoin::INLJoin(Iterator *leftIn, IndexScan *rightIn, const Condition &condition) : leftInput(leftIn), rightInput(rightIn), cond(condition) {
-	TableScan * t_ptr = dynamic_cast<TableScan *>(leftInput);
-	t_ptr->setIterator();
+	leftTable = dynamic_cast<TableScan *>(leftInput);
+	leftIsTable = true;
+	if (!leftTable){
+		leftIndex = dynamic_cast<IndexScan *>(leftInput);
+		leftIsTable = false;
+		rightInput->setIterator(NULL, NULL, true, true);
+//		unsigned indexSize = Filter::getAttr
+	}
+	else{
+		leftTable->setIterator();
+	}
 }
 
 RC INLJoin::getNextTuple(void *data) {
-  return -1;
+	//for each tuple in the outer relation
+	string leftAttrName = Filter::parseAttributeName(cond.lhsAttr);
+	string rightAttrName = Filter::parseAttributeName(cond.rhsAttr);
+	unsigned leftSize =0;
+	unsigned rightSize =0;
+	unsigned leftAttrPosition = Filter::getConditionTarget(leftTable->attrs, leftAttrName);
+	unsigned rightAttrPosition =0;
+	cout<<"join on: "<< leftAttrName<< " "<< rightAttrName<<endl;
+	cout<< "leftpositon: "<<leftAttrPosition<<endl;
+	int counter =0;
+	while(counter < 2){
+		leftTable->getNextTuple(data);
+		counter++;
+		void * leftHand;
+		leftSize = Filter::getAttSize(leftTable->attrs, leftAttrPosition, data);
+		cout<< "left size: "<< leftSize<<endl;
+		leftHand = malloc(leftSize);
+		Filter::getAttributeData(leftTable->attrs, leftAttrPosition, leftSize, data, leftHand);
+		cout<< "left: "<< ((float*)leftHand)[0]<<endl;
+		//for each tuple in the index relation
+		void * indexData = malloc(200);
+//		rightInput->setIterator(NULL, NULL, true, true);
+		while (rightInput->getNextTuple(indexData)){
+			void * rightHand;
+			rightSize = Filter::getAttSize(rightInput->attrs, 0, indexData);
+			cout<< "right size: "<< rightSize<<endl;
+			rightHand = malloc(rightSize);
+			Filter::getIndexData(rightSize, indexData, rightHand);
+			cout<< "right: "<< ((int*)rightHand)[0]<<endl;
+			//if they satisfy join condition concatinate
+			//if they met condition return the combined tuple
+		}
+		free(leftHand);
+		free(indexData);
+	}
+	return QE_EOF;
 }
 
 void INLJoin::getAttributes(vector<Attribute> &attrs) const {
-	TableScan * t_ptr = dynamic_cast<TableScan *>(leftInput);
-	if (!t_ptr)
-		return;
-	cout<< "casted properly\n";
-	attrs = t_ptr->attrs;
+	attrs = leftTable->attrs;
+	attrs.push_back(rightInput->attrs[0]);
 }
