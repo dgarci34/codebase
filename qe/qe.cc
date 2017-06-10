@@ -34,6 +34,7 @@ RC Filter::getNextTuple(void *data) {
 		leftSize = getAttSize(t_ptr->attrs, attributePosition, data);
 		leftHand = malloc(leftSize);
         	getAttributeData(t_ptr->attrs, attributePosition, leftSize, data, leftHand);
+		//dont worry about this, it is magic
 		cout<< "";
 //		if(cond.rhsValue.type == TypeVarChar)
 //			printVarchar(leftHand);
@@ -51,6 +52,7 @@ RC Filter::getNextTuple(void *data) {
 			rightSize = getStoredValueSize(cond);
 			rightHand = malloc(rightSize);
 			getDataFromValue(cond, rightSize, rightHand);
+			//dont worry about this, it is magic
 			cout<<"";
 //			if (cond.rhsValue.type == TypeVarChar)
 //				printVarchar(rightHand);
@@ -285,6 +287,8 @@ void Project::getAttributes(vector<Attribute> &attrs) const {
 
 // INLJoin
 INLJoin::INLJoin(Iterator *leftIn, IndexScan *rightIn, const Condition &condition) : leftInput(leftIn), rightInput(rightIn), cond(condition) {
+	TableScan * t_ptr = dynamic_cast<TableScan *>(leftInput);
+	t_ptr->setIterator();
 }
 
 RC INLJoin::getNextTuple(void *data) {
@@ -292,4 +296,9 @@ RC INLJoin::getNextTuple(void *data) {
 }
 
 void INLJoin::getAttributes(vector<Attribute> &attrs) const {
+	TableScan * t_ptr = dynamic_cast<TableScan *>(leftInput);
+	if (!t_ptr)
+		return;
+	cout<< "casted properly\n";
+	attrs = t_ptr->attrs;
 }
